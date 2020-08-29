@@ -15,6 +15,7 @@ class Main:
         self.celebrity = input('[>] URL: https://www.famousbirthdays.com/people/')
         if '.html' not in self.celebrity:
             self.celebrity = f'{self.celebrity}.html'
+        print()
 
     def _booster(self, arg):
         try:
@@ -55,7 +56,6 @@ class Main:
 
     def _multi_threading(self):
         threading.Thread(target=self._update_title).start()
-        print()
 
         while True:
             for proxy in self.proxies:
