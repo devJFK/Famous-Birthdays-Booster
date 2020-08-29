@@ -8,6 +8,8 @@ Boosts a celebrity's rank of choice on https://www.famousbirthdays.com/.
 ## Information
 This tool was strictly developed to demonstrate how straightforward it is to abuse a service like [Famous Birthdays](https://www.famousbirthdays.com/). This bot is using proxies to prevent rate limits along with identity leaks. Please refrain from using this **Famous Birthdays Booster** as it is spamming their API. Nevertheless, if you use this, you are doing it at your own risk. You have been warned.
 
+Keep in mind that it takes a while for the rank to be updated — confirm by boosting manually.
+
 ## Usage
 - Python 3.8 or above is required.
 - I develop for Windows machines only and do not intentionally support other operating systems.
