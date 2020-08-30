@@ -1,5 +1,4 @@
 from os import system
 
-system('pip install requests')
+system('pip install -r requirements.txt')
 print('\nFinished.')
-system('pause >NUL')

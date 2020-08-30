@@ -1,97 +1,103 @@
-import os
-import time
-import requests
-import threading
-from json import decoder
+from multiprocessing.pool import ThreadPool as pool
+from models.famousbirthday import FamousBirthday
+from models.response_status import ResponseType
+from utils.file_reader import readList
+from models.console import Console
+from models.status import Status
+from models.proxy import Proxy
+from threading import Lock
+from rich import print
+import random
 
 
-class Main:
-    def __init__(self):
-        self.variables = {
-            'success': 0,
-            'errors': 0
-        }
+CONSOLE = Console('FamousBirthdayBoost', 'zoony1337')
+PROXIES = []
+MODULE = FamousBirthday()
+LOCK = Lock()
+COUNTER = {
+    'Success':0,
+    'Failure':0,
+    'Errors':0
+}
 
-        self.celebrity = input('[>] URL: https://www.famousbirthdays.com/people/')
-        if '.html' not in self.celebrity:
-            self.celebrity = f'{self.celebrity}.html'
-        print()
+def randomProxy():
+    if len(PROXIES) == 0:
+        return Proxy(None, None)
+    return random.choice(PROXIES)
 
-    def _booster(self, arg):
-        try:
-            boost = requests.post(
-                'https://www.famousbirthdays.com/api/people/boost', data=f'url={self.celebrity}',
-                proxies={'https': f'http://{arg}'}, timeout=5, headers={
-                    'Content-type': 'application/x-www-form-urlencoded',
-                    'Referer': f'https://www.famousbirthdays.com/people/{self.celebrity}',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KH'
-                                  'TML, like Gecko) Chrome/85.0.4183.83 Safari/537.36'
-                }
-            ).json()['status']
-        except Exception:
-            self.variables['errors'] += 1
-        else:
-            if boost == 'success':
-                try:
-                    rank = requests.get(
-                        f'https://www.famousbirthdays.com/people/{self.celebrity}',
-                        proxies={'https': f'http://{arg}'}
-                    ).text.split('<div class="rank-no">')[1].split('</div>')[0]
-                except Exception:
-                    self.variables['errors'] += 1
-                else:
-                    self.variables['success'] += 1
-                    print(f'[!] Success | Rank: {rank}')
+def loadProxyType():
+    while True:
+        CONSOLE.printName()
+        print(f'[yellow]1 - HTTPS[/yellow]')
+        print(f'[yellow]2 - SOCKS4[/yellow]')
+        print(f'[yellow]3 - SOCKS5[/yellow]')
+        print(f'[red]0 - PROXYLESS[/red]')
+        Response = CONSOLE.askInteger('Please choose a proxy type from the list above')
+        if Response == 1:
+            return 'https'
+        elif Response == 2:
+            return 'socks4'
+        elif Response == 3:
+            return 'socks5'
+        elif Response == 0:
+            return None
+
+def loadProxies():
+    proxyType = loadProxyType()
+    if proxyType is None:
+        return []
+    while True:
+        CONSOLE.printName()
+        Response = CONSOLE.askString('Please drag in your proxy file').strip("'")
+        proxyFile = readList(Response)
+        if proxyFile != Status.FAILURE:
+            return [Proxy(proxy, proxyType) for proxy in proxyFile]
+
+def loadThreads():
+    while True:
+        CONSOLE.printName()
+        Response = CONSOLE.askInteger('How many threads should be utilized?')
+        if Response == 0:
+            return 1
+        return Response
+
+def loadCelebrity():
+    CONSOLE.printName()
+    print('Which celebrity should be boosted?')
+    Response = CONSOLE.askString('https://www.famousbirthdays.com/people/')
+    return Response.rstrip('.html')
+
+def sendBoost(celebrity):
+    global COUNTER
+    while True:
+        status = MODULE.check(celebrity, randomProxy())
+
+        while status == ResponseType.BANNED:
+            with LOCK:
+                COUNTER['Errors'] += 1
+                CONSOLE.setTitle(COUNTER)
+            status = MODULE.check(celebrity,randomProxy())
+
+        with LOCK:
+            if status == ResponseType.FAILURE:
+                COUNTER['Failure'] += 1
+                CONSOLE.setTitle(COUNTER)
+                print(f'[red][[x]] Failed Request![/red]')
             else:
-                self.variables['errors'] += 1
-                print(f'[!] Error | {boost}')
+                COUNTER['Success'] += 1
+                CONSOLE.setTitle(COUNTER)
+                print(f'[green][[!!]] Success! | Rank: {status.rank}[/green]')
 
-    def _update_title(self):
-        while True:
-            os.system(
-                f'title [Famous Birthdays Booster] - Boosted: {self.variables["success"]} ^| Errors'
-                f': {self.variables["errors"]}'
-            )
-            time.sleep(0.1)
+def run():
+    global PROXIES
+    celebrity = loadCelebrity()
+    PROXIES = loadProxies()
+    threadCount = loadThreads()
+    Pool = pool(threadCount)
+    for _ in range(threadCount):
+        Pool.apply_async(sendBoost, (celebrity,))
+    Pool.close()
+    Pool.join()
 
-    def _multi_threading(self):
-        threading.Thread(target=self._update_title).start()
-
-        while True:
-            for proxy in self.proxies:
-                attempting = True
-
-                while attempting:
-                    if threading.active_count() <= 300:
-                        threading.Thread(target=self._booster, args=(proxy,)).start()
-                        attempting = False
-
-    def setup(self):
-        error = False
-        if os.path.exists((proxies_txt := 'Proxies.txt')):
-            with open(proxies_txt, 'r', encoding='UTF-8', errors='replace') as f:
-                self.proxies = [
-                    line.replace(' ', '') for line in f.read().splitlines() if line not in ('', ' ')
-                ]
-            if len(self.proxies) == 0:
-                error = True
-        else:
-            open(proxies_txt, 'a').close()
-            error = True
-
-        if error:
-            print('[!] Paste HTTP proxies in Proxies.txt.')
-            os.system(
-                'title [Famous Birthdays Booster] - Restart required && '
-                'pause >NUL && '
-                'title [Famous Birthdays Booster] - Exiting...'
-            )
-            time.sleep(3)
-        else:
-            self._multi_threading()
-
-
-if __name__ == '__main__':
-    os.system('cls && title [Famous Birthdays Booster]')
-    main = Main()
-    main.setup()
+if __name__ == "__main__":
+    run()
